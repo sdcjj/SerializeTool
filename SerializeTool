@@ -1,0 +1,177 @@
+using System;
+using System.IO;
+using System.Xml;
+using System.Text;
+using System.Xml.Serialization;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.Runtime.Serialization.Json;
+
+namespace MoultonToos
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            Student1 obj1 = new Student1() { Id = "123456", Address = "beijing" };
+            Student2 obj2 = new Student2() { Id = "123456", Address = "beijing" };
+            Student3 obj3 = new Student3() { Id = "123456", Address = "beijing" };
+
+
+            string xm1 = SerializeTool.ObjectToXmlStr<Student1>(obj1);
+            string xm2 = SerializeTool.ObjectToXmlStr<Student2>(obj2);
+            string xm3 = SerializeTool.ObjectToXmlStr<Student3>(obj3);
+
+            byte[] b1 = SerializeTool.ObjectToByteArray(obj1);
+            //byte[] b2 = SerializeTool.ObjectToByteArray(obj2);//失败
+            //byte[] b3 = SerializeTool.ObjectToByteArray(obj3);//失败
+
+
+            string json1 = SerializeTool.ObjectToJsonStr<Student1>(obj1);
+            string json2 = SerializeTool.ObjectToJsonStr<Student2>(obj2);
+            string json3 = SerializeTool.ObjectToJsonStr<Student3>(obj3);
+        }
+    }
+
+    #region Entity
+    [Serializable]//对象支持序列化成流
+    public class Student1
+    {
+        public string Id { get; set; }
+
+        [NonSerialized]//序列化成流对象时被忽略 只能标记字段不能标记属性
+        private string address;
+        public string Address
+        {
+            get { return address; }
+            set { address = value; }
+        }
+    }
+
+    public class Student2
+    {
+        public string Id { get; set; }
+
+        [XmlIgnore]//序列化成XML时被忽略
+        public string Address { get; set; }
+    }
+
+    [DataContract]
+    public class Student3
+    {
+        [DataMember]
+        public string Id { get; set; }
+
+        [IgnoreDataMember]
+        public string Address { get; set; }
+    } 
+    #endregion
+
+    public class SerializeTool
+    {
+        /// <summary>
+        /// 将对象序列化为xml字符串
+        /// </summary>
+        /// <typeparam name="T">类型</typeparam>
+        /// <param name="t">对象</param>
+        public static string ObjectToXmlStr<T>(T t) where T : class
+        {
+            string result = "";
+            using (MemoryStream stream = new MemoryStream())
+            {
+                XmlSerializer formatter = new XmlSerializer(typeof(T));
+                formatter.Serialize(stream, t);
+                result = Encoding.UTF8.GetString(stream.ToArray());
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// 将xml文件反序列化为对象
+        /// </summary>
+        /// <typeparam name="T">类型</typeparam>
+        /// <param name="t">对象</param>
+        /// <param name="path">xml路径</param>
+        /// <returns>对象</returns>
+        public static T XmlStrToObject<T>(string xmlStr) where T : class
+        {
+            XmlSerializer formatter = new XmlSerializer(typeof(T));
+            using (MemoryStream stream = new MemoryStream(Encoding.UTF8.GetBytes(xmlStr)))
+            {
+                XmlReader xmlReader = new XmlTextReader(stream);
+                T result = formatter.Deserialize(xmlReader) as T;
+                return result;
+            }
+        }
+
+        /// <summary>
+        /// Serializable标记的对象序列化成二进制流
+        /// </summary>
+        /// <param name="ob">对象实体</param>
+        /// <returns></returns>
+        public static byte[] ObjectToByteArray(object ob)
+        {
+            byte[] bytArray;
+            using (MemoryStream stream = new MemoryStream())
+            {
+                IFormatter formatter = new BinaryFormatter();
+                formatter.Serialize(stream, ob);
+                bytArray = stream.ToArray();
+            }
+            return bytArray;
+        }
+
+        /// <summary>
+        /// 二进制流序列化成Serializable标记的对象
+        /// </summary>
+        /// <typeparam name="T">对象类型</typeparam>
+        /// <param name="data">二进制数据</param>
+        /// <returns></returns>
+        public static T ByteArrayToObject<T>(byte[] data) where T : class
+        {
+            T result;
+            using (MemoryStream stream = new MemoryStream(data))
+            {
+                IFormatter formatter = new BinaryFormatter();
+                result = formatter.Deserialize(stream) as T;
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// DataContract标记的对象序列化为Json字符串
+        /// </summary>
+        /// <typeparam name="T">对象类型</typeparam>
+        /// <param name="t">对象实体</param>
+        /// <returns></returns>
+        public static string ObjectToJsonStr<T>(T t) where T : class
+        {
+            string jsonStr = null;
+            DataContractJsonSerializer jsonSerializer = new DataContractJsonSerializer(typeof(T));
+            using (MemoryStream stream = new MemoryStream())
+            {
+                jsonSerializer.WriteObject(stream, t);
+                jsonStr = Encoding.UTF8.GetString(stream.ToArray());
+            }
+            return jsonStr;
+        }
+
+        /// <summary>
+        /// Json字符串反序列化为对象
+        /// </summary>
+        /// <typeparam name="T">对象类型</typeparam>
+        /// <param name="jsonStr">Json字符串</param>
+        /// <returns></returns>
+        public static T JsonStrToObject<T>(string jsonStr) where T : class
+        {
+            T result;
+            DataContractJsonSerializer formatter = new DataContractJsonSerializer(typeof(T));
+            using (MemoryStream stream = new MemoryStream(Encoding.UTF8.GetBytes(jsonStr)))
+            {
+                result = formatter.ReadObject(stream) as T;
+            }
+            return result;
+        }
+    }
+
+}
